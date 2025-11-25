@@ -163,51 +163,13 @@
 <script>
     /* 
     ========================================================
-    CONFIGURATION: FILES AND PASSWORDS
+    CONFIGURATION: DYNAMIC
     ========================================================
     */
     
-    const QUIZ_FILES = [
-        "Крок 1 Промислова фармація.txt",
-        "Крок 2 Медицина (UA).txt",
-        "Крок 1 Фармація (UA) (для здобувачів, які складатимуть іспит з червня 2025 року).txt",
-        "Крок 2 Фармація (UA).txt",
-        "Крок 1 Медицина (UA).txt",
-        "Крок 1 Фармація (UA).txt",
-        "Крок 1 Стоматологія (UA).txt",
-        "Krok 1 Stomatology (EN).txt",
-        "Krok 1 Pharmacy (EN).txt",
-        "Krok 1 Medicine (EN).txt",
-        "Крок 2 Медична психологія (UA).txt",
-        "Крок 2 Фізична терапія (UA).txt",
-        "Крок 2 Громадське здоров'я (UA).txt",
-        "Крок 2 Технології медичної діагностики та лікування.txt",
-        "Крок 2 Ерготерапія.txt",
-        "Крок 2 Промислова фармація.txt",
-        "Крок 2 Стоматологія (UA).txt",
-        "Крок 2 Педіатрія (UA).txt"
-    ];
-
-    const FILE_PASSWORDS = {
-        "Крок 1 Промислова фармація.txt": "prom1",
-        "Крок 2 Медицина (UA).txt": "med2",
-        "Крок 1 Фармація (UA) (для здобувачів, які складатимуть іспит з червня 2025 року).txt": "pharm2025",
-        "Крок 2 Фармація (UA).txt": "pharm2",
-        "Крок 1 Медицина (UA).txt": "med1",
-        "Крок 1 Фармація (UA).txt": "pharm1",
-        "Крок 1 Стоматологія (UA).txt": "stom1",
-        "Krok 1 Stomatology (EN).txt": "stomen",
-        "Krok 1 Pharmacy (EN).txt": "pharmen",
-        "Krok 1 Medicine (EN).txt": "meden",
-        "Крок 2 Медична психологія (UA).txt": "psycho",
-        "Крок 2 Фізична терапія (UA).txt": "physio",
-        "Крок 2 Громадське здоров'я (UA).txt": "public",
-        "Крок 2 Технології медичної діагностики та лікування.txt": "diag",
-        "Крок 2 Ерготерапія.txt": "ergo",
-        "Крок 2 Промислова фармація.txt": "prom2",
-        "Крок 2 Стоматологія (UA).txt": "stom2",
-        "Крок 2 Педіатрія (UA).txt": "pedia"
-    };
+    // Variables now empty, populated by config.json
+    let QUIZ_FILES = [];
+    let FILE_PASSWORDS = {};
 
     const DEFAULT_PASSWORD = "1234";
     const TXT_FOLDER_PATH = "./TXTs/"; 
@@ -226,33 +188,59 @@
     window.addEventListener('DOMContentLoaded', initApp);
 
     async function initApp() {
-        let loadedCount = 0;
-        
-        const fetchPromises = QUIZ_FILES.map(async (filename) => {
-            try {
-                // Encode URI component to handle spaces and special chars in URL
-                const path = TXT_FOLDER_PATH + encodeURIComponent(filename);
-                const response = await fetch(path);
-                if (!response.ok) throw new Error("File not found");
-                const text = await response.text();
-                const questions = parseTXT(text);
-                if (questions.length > 0) {
-                    loadedFiles[filename] = questions;
-                    loadedCount++;
-                }
-            } catch (err) {
-                console.error(`Failed to load ${filename}:`, err);
+        try {
+            // 1. Load Configuration from JSON
+            // We append a timestamp to prevent caching old config files
+            const configResponse = await fetch('./config.json?t=' + new Date().getTime());
+            if (!configResponse.ok) throw new Error("Could not load config.json. Ensure file exists.");
+            
+            const configData = await configResponse.json();
+            
+            // Assign data from JSON
+            QUIZ_FILES = configData.files || [];
+            FILE_PASSWORDS = configData.passwords || {};
+
+            if(QUIZ_FILES.length === 0) {
+                alert("Config loaded, but no files defined.");
+                showScreen('screen-select-file'); // Show empty list
+                return;
             }
-        });
 
-        await Promise.all(fetchPromises);
+            // 2. Load TXT Files based on config
+            let loadedCount = 0;
+            const fetchPromises = QUIZ_FILES.map(async (filename) => {
+                try {
+                    const path = TXT_FOLDER_PATH + encodeURIComponent(filename);
+                    const response = await fetch(path);
+                    if (!response.ok) throw new Error("File not found");
+                    const text = await response.text();
+                    const questions = parseTXT(text);
+                    if (questions.length > 0) {
+                        loadedFiles[filename] = questions;
+                        loadedCount++;
+                    }
+                } catch (err) {
+                    console.error(`Failed to load ${filename}:`, err);
+                }
+            });
 
-        if (loadedCount === 0) {
-            alert("Увага! Не вдалося завантажити файли. Переконайтеся, що папка 'TXTs' знаходиться поруч з файлом index.html.");
+            await Promise.all(fetchPromises);
+
+            if (loadedCount === 0) {
+                alert("Увага! Не вдалося знайти текстові файли в папці TXTs/.");
+            }
+
+            renderFileList();
+            showScreen('screen-select-file');
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('screen-loading').innerHTML = `
+                <h1>Помилка</h1>
+                <p>Не вдалося завантажити налаштування.</p>
+                <p style="color:red">${error.message}</p>
+            `;
         }
-
-        renderFileList();
-        showScreen('screen-select-file');
     }
 
     function parseTXT(text) {
@@ -316,11 +304,10 @@
         list.innerHTML = '';
         
         if (Object.keys(loadedFiles).length === 0) {
-            list.innerHTML = '<li class="list-item">Не знайдено тестів. Перевірте консоль.</li>';
+            list.innerHTML = '<li class="list-item">Не знайдено тестів. Використайте адмін-панель для завантаження.</li>';
             return;
         }
 
-        // Sort alphabetically for cleaner UI
         const sortedFilenames = Object.keys(loadedFiles).sort();
 
         sortedFilenames.forEach(filename => {
@@ -345,7 +332,6 @@
         const input = document.getElementById('password-input').value;
         const correctPass = FILE_PASSWORDS[selectedFilename] || DEFAULT_PASSWORD;
         
-        // Allow input to be case insensitive if you prefer, removing toLowerCase() makes it strict
         if (input.trim() === correctPass) {
             showScreen('screen-mode');
         } else {
