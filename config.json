@@ -19,7 +19,8 @@
     "Крок 2 Стоматологія (UA).txt",
     "Крок 2 Педіатрія (UA).txt",
     "Krok 2 Medicine (EN).txt",
-    "Krok 2 Pharmacy (EN).txt"
+    "Krok 2 Pharmacy (EN).txt",
+    "Крок 3 Радіологія.txt"
   ],
   "passwords": {
     "Крок 1 Промислова фармація.txt": "prom1",
@@ -41,6 +42,7 @@
     "Крок 2 Стоматологія (UA).txt": "stom2",
     "Крок 2 Педіатрія (UA).txt": "pedia",
     "Krok 2 Medicine (EN).txt": "med2en",
-    "Krok 2 Pharmacy (EN).txt": "pharma2en"
+    "Krok 2 Pharmacy (EN).txt": "pharma2en",
+    "Крок 3 Радіологія.txt": "radio3"
   }
 }
